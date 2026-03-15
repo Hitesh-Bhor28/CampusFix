@@ -8,6 +8,7 @@ const {
     updateComplaint,
     deleteComplaint,
     upvoteComplaint,
+    assignWorker,
 } = require("../controllers/complaintController");
 const upload = require("../middlewares/upload");
 
@@ -17,6 +18,7 @@ const upload = require("../middlewares/upload");
 router.route("/").get(getComplaints).post(createComplaint);
 router.route("/create").post(upload.single("image"), createComplaint);
 router.route("/all").get(getAllComplaints);
+router.route("/assign/:id").patch(assignWorker);
 router.route("/:id/upvote").post(upvoteComplaint);
 router.route("/:id").get(getComplaint).put(updateComplaint).delete(deleteComplaint);
 

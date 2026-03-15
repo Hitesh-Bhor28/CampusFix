@@ -1,46 +1,127 @@
 import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import AnalyticsWidget from '../components/AnalyticsWidget'
+import HeatmapWidget from '../components/HeatmapWidget'
+import useComplaints from '../hooks/useComplaints'
+import { FIELD_WORKERS } from '../utils/constants'
+import { addComplaints } from '../utils/complaintSlice'
 
 function AdminDashboard() {
-    return (
-        <div className="min-h-screen p-8">
-            <nav className="flex items-center justify-between mb-8">
-                <Link to="/" className="text-[var(--color-text-muted)] hover:text-white transition-colors">
-                    ← Back to Home
-                </Link>
-                <h1 className="text-2xl font-bold text-[var(--color-primary)]">Admin Dashboard</h1>
-            </nav>
+  useComplaints()
+  const dispatch = useDispatch()
+  const complaintsList = useSelector((store) => store.complaints?.complaintsList) || []
 
-            <div className="max-w-6xl mx-auto">
-                <div className="bg-[var(--color-surface)] rounded-2xl p-8 border border-[var(--color-surface-2)]">
-                    <h2 className="text-xl font-semibold mb-4">🛡️ Complaint Management</h2>
-                    <p className="text-[var(--color-text-muted)]">
-                        This dashboard will provide a centralized view of all complaints,
-                        area-wise monitoring, heatmap visualization, status management,
-                        task assignment to field workers, and analytics.
-                    </p>
+  const handleAssignWorker = async (complaintId, workerId) => {
+    if (!complaintId) return
 
-                    {/* Placeholder sections */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                        <div className="bg-[var(--color-surface-2)] rounded-xl p-6 text-center">
-                            <p className="text-3xl mb-2">📊</p>
-                            <p className="font-medium">Analytics</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Complaint stats & trends</p>
-                        </div>
-                        <div className="bg-[var(--color-surface-2)] rounded-xl p-6 text-center">
-                            <p className="text-3xl mb-2">🗺️</p>
-                            <p className="font-medium">Heatmap</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Density visualization</p>
-                        </div>
-                        <div className="bg-[var(--color-surface-2)] rounded-xl p-6 text-center">
-                            <p className="text-3xl mb-2">👷</p>
-                            <p className="font-medium">Assign Tasks</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Send to field workers</p>
-                        </div>
-                    </div>
-                </div>
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:7777/api/complaints/assign/${complaintId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ workerId }),
+        },
+      )
+
+      if (!response.ok) {
+        return
+      }
+
+      const updated = complaintsList.map((complaint) =>
+        complaint._id === complaintId || complaint.id === complaintId
+          ? { ...complaint, assignedTo: workerId }
+          : complaint,
+      )
+      dispatch(addComplaints(updated))
+    } catch (error) {
+      console.error('Failed to assign worker', error)
+    }
+  }
+
+  return (
+    <div className="min-h-screen p-8">
+      <nav className="mb-8 flex items-center justify-between">
+        <Link to="/" className="text-[var(--color-text-muted)] transition-colors hover:text-white">
+          Back to Home
+        </Link>
+        <h1 className="text-2xl font-bold text-[var(--color-primary)]">Admin Dashboard</h1>
+      </nav>
+
+      <div className="mx-auto max-w-6xl space-y-8">
+        <AnalyticsWidget />
+        <HeatmapWidget />
+        <div className="rounded-2xl border border-[var(--color-surface-2)] bg-[var(--color-surface)] p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Complaint Management</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Assign complaints to field workers and track progress.
+              </p>
             </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-[var(--color-surface-2)]">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[var(--color-surface-2)] text-[var(--color-text-muted)]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Title</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Upvotes</th>
+                  <th className="px-4 py-3 font-semibold">Assignee</th>
+                </tr>
+              </thead>
+              <tbody>
+                {complaintsList.length ? (
+                  complaintsList.map((complaint) => (
+                    <tr
+                      key={complaint._id || complaint.id}
+                      className="border-t border-[var(--color-surface-2)]"
+                    >
+                      <td className="px-4 py-3 font-medium text-white">{complaint.title}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {complaint.status || 'Pending'}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {complaint.upvotes ?? 0}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          className="w-full rounded-lg border border-[var(--color-surface-2)] bg-[var(--color-surface)] px-3 py-2 text-sm text-white"
+                          defaultValue={complaint.assignedTo || ''}
+                          onChange={(event) =>
+                            handleAssignWorker(complaint._id || complaint.id, event.target.value)
+                          }
+                        >
+                          <option value="">Unassigned</option>
+                          {FIELD_WORKERS.map((worker) => (
+                            <option key={worker.id} value={worker.id}>
+                              {worker.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      className="px-4 py-6 text-center text-[var(--color-text-muted)]"
+                      colSpan={4}
+                    >
+                      No complaints found yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-    )
+      </div>
+    </div>
+  )
 }
 
 export default AdminDashboard

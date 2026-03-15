@@ -163,6 +163,34 @@ const upvoteComplaint = async (req, res, next) => {
     }
 };
 
+// @desc    Assign worker to complaint
+// @route   PATCH /api/complaints/assign/:id
+// @access  Public
+const assignWorker = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { workerId } = req.body;
+
+        if (!workerId) {
+            return res.status(400).json({ message: "Worker ID is required" });
+        }
+
+        const updatedComplaint = await Complaint.findByIdAndUpdate(
+            id,
+            { assignedTo: workerId },
+            { new: true }
+        );
+
+        if (!updatedComplaint) {
+            return res.status(404).json({ message: "Complaint not found" });
+        }
+
+        res.status(200).json({ message: "Worker assigned", data: updatedComplaint });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to assign worker" });
+    }
+};
+
 module.exports = {
     getAllComplaints,
     getComplaints,
@@ -171,4 +199,5 @@ module.exports = {
     updateComplaint,
     deleteComplaint,
     upvoteComplaint,
+    assignWorker,
 };
