@@ -14,7 +14,6 @@ dist-ssr
 .gemini
 .vscode
 .env
-.env.example
 README.md
 
 # Editor directories and files
