@@ -35,7 +35,7 @@ const ticketSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["Pending", "In Progress", "Resolved"],
+            enum: ["Pending", "Assigned", "In Progress", "Resolved"],
             default: "Pending",
         },
         upvotes: {
@@ -76,7 +76,11 @@ const ticketSchema = new mongoose.Schema(
             default: null,
         },
         assignedTo: {
-            type: String, // Clerk user ID of field worker
+            type: String, // Clerk user ID of maintenance staff
+            default: null,
+        },
+        assignedToName: {
+            type: String,
             default: null,
         },
         resolvedAt: {

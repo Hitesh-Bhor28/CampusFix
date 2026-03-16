@@ -5,6 +5,7 @@ const Ticket = require("../models/Ticket");
 // @access  Public
 const getAllTickets = async (req, res) => {
     try {
+        res.set("Cache-Control", "no-store");
         const tickets = await Ticket.find({}).sort({ createdAt: -1 });
         res.status(200).json({ data: tickets });
     } catch (error) {
@@ -149,6 +150,10 @@ const upvoteTicket = async (req, res, next) => {
             return res.status(404).json({ message: "Ticket not found" });
         }
 
+        if (ticket.status === "Resolved") {
+            return res.status(400).json({ message: "Resolved tickets cannot be upvoted" });
+        }
+
         if (ticket.upvotedBy.includes(userId)) {
             return res.status(400).json({ message: "You have already upvoted this ticket" });
         }
@@ -169,15 +174,25 @@ const upvoteTicket = async (req, res, next) => {
 const assignWorker = async (req, res) => {
     try {
         const { id } = req.params;
-        const { workerId } = req.body;
+        const { workerId, workerName } = req.body;
 
         if (!workerId) {
-            return res.status(400).json({ message: "Worker ID is required" });
+            const updatedTicket = await Ticket.findByIdAndUpdate(
+                id,
+                { assignedTo: null, assignedToName: null, status: "Pending" },
+                { new: true }
+            );
+
+            if (!updatedTicket) {
+                return res.status(404).json({ message: "Ticket not found" });
+            }
+
+            return res.status(200).json({ message: "Worker unassigned", data: updatedTicket });
         }
 
         const updatedTicket = await Ticket.findByIdAndUpdate(
             id,
-            { assignedTo: workerId },
+            { assignedTo: workerId, assignedToName: workerName || null, status: "Assigned" },
             { new: true }
         );
 

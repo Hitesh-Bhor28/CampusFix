@@ -3,7 +3,8 @@ import { useAuth } from '@clerk/clerk-react'
 
 const statusStyles = {
   pending: 'bg-amber-500/15 text-amber-200 border-amber-500/30',
-  'in progress': 'bg-sky-500/15 text-sky-200 border-sky-500/30',
+  assigned: 'bg-sky-500/15 text-sky-200 border-sky-500/30',
+  'in progress': 'bg-indigo-500/15 text-indigo-200 border-indigo-500/30',
   resolved: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
 }
 
@@ -18,6 +19,7 @@ const TicketCard = ({ ticket }) => {
 
   const statusKey = String(ticket.status || 'Pending').toLowerCase()
   const statusClass = statusStyles[statusKey] || statusStyles.pending
+  const isResolved = statusKey === 'resolved'
 
   const hasUpvoted = useMemo(() => {
     if (!userId) return false
@@ -29,6 +31,11 @@ const TicketCard = ({ ticket }) => {
   }, [ticket.upvotes])
 
   const handleUpvote = async () => {
+    if (isResolved) {
+      setMessage('Resolved tickets cannot be upvoted.')
+      return
+    }
+
     if (!userId) {
       setMessage('Sign in to upvote this ticket.')
       return
@@ -91,7 +98,7 @@ const TicketCard = ({ ticket }) => {
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-lg font-semibold text-white">{ticket.title}</h3>
         <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusClass}`}>
-          {ticket.status || 'Open'}
+          {ticket.status || 'Pending'}
         </span>
       </div>
       <p className="mt-3 text-sm text-white/70">{ticket.description}</p>
@@ -145,13 +152,16 @@ const TicketCard = ({ ticket }) => {
         <button
           type="button"
           onClick={handleUpvote}
+          disabled={isResolved}
           className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-            hasUpvoted
-              ? 'border-emerald-400/50 text-emerald-200'
-              : 'border-white/20 text-white/70 hover:border-emerald-300 hover:text-white'
+            isResolved
+              ? 'border-white/10 text-white/30'
+              : hasUpvoted
+                ? 'border-emerald-400/50 text-emerald-200'
+                : 'border-white/20 text-white/70 hover:border-emerald-300 hover:text-white'
           }`}
         >
-          {hasUpvoted ? 'Upvoted' : isSubmitting ? 'Upvoting...' : 'Upvote'}
+          {isResolved ? 'Resolved' : hasUpvoted ? 'Upvoted' : isSubmitting ? 'Upvoting...' : 'Upvote'}
         </button>
       </div>
       {message ? <p className="mt-2 text-xs text-emerald-200">{message}</p> : null}

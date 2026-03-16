@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import AnalyticsWidget from '../components/AnalyticsWidget'
 import HeatmapWidget from '../components/HeatmapWidget'
 import useTickets from '../hooks/useTickets'
-import { FIELD_WORKERS } from '../utils/constants'
 import { addTickets } from '../utils/ticketSlice'
 
 function AdminDashboard() {
@@ -12,6 +11,22 @@ function AdminDashboard() {
   const dispatch = useDispatch()
   const ticketsList = useSelector((store) => store.tickets?.ticketsList) || []
   const [selectedTicket, setSelectedTicket] = useState(null)
+  const [workers, setWorkers] = useState([])
+
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      try {
+        const response = await fetch('http://localhost:7777/api/workers', { cache: 'no-store' })
+        if (!response.ok) return
+        const data = await response.json()
+        setWorkers(data?.data ?? [])
+      } catch (error) {
+        console.error('Failed to fetch workers', error)
+      }
+    }
+
+    fetchWorkers()
+  }, [])
 
   useEffect(() => {
     if (!selectedTicket) return undefined
@@ -29,13 +44,16 @@ function AdminDashboard() {
   const handleAssignWorker = async (ticketId, workerId) => {
     if (!ticketId) return
 
+    const worker = workers.find((item) => item.id === workerId)
+    const workerName = worker?.name || null
+
     try {
       const response = await fetch(`http://127.0.0.1:7777/api/tickets/assign/${ticketId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ workerId }),
+        body: JSON.stringify({ workerId, workerName }),
       })
 
       if (!response.ok) {
@@ -44,7 +62,12 @@ function AdminDashboard() {
 
       const updated = ticketsList.map((ticket) =>
         ticket._id === ticketId || ticket.id === ticketId
-          ? { ...ticket, assignedTo: workerId }
+          ? {
+              ...ticket,
+              assignedTo: workerId || null,
+              assignedToName: workerName,
+              status: workerId ? 'Assigned' : 'Pending',
+            }
           : ticket,
       )
       dispatch(addTickets(updated))
@@ -102,18 +125,21 @@ function AdminDashboard() {
                         <td className="px-4 py-3">
                           <select
                             className="w-full rounded-lg border border-[var(--color-surface-2)] bg-[var(--color-surface)] px-3 py-2 text-sm text-white"
-                            defaultValue={ticket.assignedTo || ''}
+                            value={ticket.assignedTo || ''}
                             onChange={(event) =>
                               handleAssignWorker(ticket._id || ticket.id, event.target.value)
                             }
                           >
                             <option value="">Unassigned</option>
-                            {FIELD_WORKERS.map((worker) => (
+                            {workers.map((worker) => (
                               <option key={worker.id} value={worker.id}>
                                 {worker.name}
                               </option>
                             ))}
                           </select>
+                          {ticket.assignedToName ? (
+                            <p className="mt-1 text-xs text-white/50">{ticket.assignedToName}</p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-[var(--color-text-muted)]">
                           {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : '—'}

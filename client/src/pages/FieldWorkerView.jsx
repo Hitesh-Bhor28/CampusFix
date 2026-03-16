@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import StaffDashboard from '../components/StaffDashboard'
 
 function FieldWorkerView() {
     return (
@@ -10,33 +11,15 @@ function FieldWorkerView() {
                 <h1 className="text-2xl font-bold text-[var(--color-primary)]">Maintenance Staff View</h1>
             </nav>
 
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-6xl space-y-6">
                 <div className="rounded-2xl border border-[var(--color-surface-2)] bg-[var(--color-surface)] p-8">
-                    <h2 className="mb-4 text-xl font-semibold">Assigned Tasks</h2>
+                    <h2 className="mb-4 text-xl font-semibold">My Tasks</h2>
                     <p className="text-[var(--color-text-muted)]">
-                        This view will show assigned maintenance tickets, provide
-                        navigation to campus locations, and allow staff to upload
-                        proof of resolution.
+                        Review assigned maintenance tickets, track status, and update progress
+                        as issues are resolved.
                     </p>
-
-                    <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div className="rounded-xl bg-[var(--color-surface-2)] p-6 text-center">
-                            <p className="mb-2 text-3xl">My Tasks</p>
-                            <p className="font-medium">Assigned tickets</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Work queue</p>
-                        </div>
-                        <div className="rounded-xl bg-[var(--color-surface-2)] p-6 text-center">
-                            <p className="mb-2 text-3xl">Navigate</p>
-                            <p className="font-medium">Campus directions</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Get to the location</p>
-                        </div>
-                        <div className="rounded-xl bg-[var(--color-surface-2)] p-6 text-center">
-                            <p className="mb-2 text-3xl">Submit Proof</p>
-                            <p className="font-medium">Resolution updates</p>
-                            <p className="text-sm text-[var(--color-text-muted)]">Upload completion photos</p>
-                        </div>
-                    </div>
                 </div>
+                <StaffDashboard />
             </div>
         </div>
     )

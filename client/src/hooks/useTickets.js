@@ -8,7 +8,9 @@ const useTickets = () => {
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const response = await fetch('http://localhost:7777/api/tickets/all')
+        const response = await fetch(`http://localhost:7777/api/tickets/all?ts=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (!response.ok) {
           return
         }

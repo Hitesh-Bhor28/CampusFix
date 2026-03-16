@@ -30,10 +30,12 @@ if (process.env.NODE_ENV !== "production") {
 
 // --------------- Routes ---------------
 app.get("/api/health", (_req, res) => {
-    res.status(200).json({ success: true, message: "CrowdFix API is running 🚀" });
+    res.status(200).json({ success: true, message: "CampusFix API is running" });
 });
 
 app.use("/api/tickets", require("./routes/ticketRoutes"));
+app.use("/api/issues", require("./routes/issueRoutes"));
+app.use("/api/workers", require("./routes/workerRoutes"));
 
 // --------------- Error Handling ---------------
 app.use(errorHandler);
@@ -41,5 +43,5 @@ app.use(errorHandler);
 // --------------- Start Server ---------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });
