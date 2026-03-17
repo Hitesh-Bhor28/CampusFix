@@ -45,6 +45,9 @@ const Header = () => {
           <Link className="transition hover:text-emerald-600" to="/tickets">
             Ticket Feed
           </Link>
+          <Link className="transition hover:text-emerald-600" to="/my-tickets">
+            My Tickets
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

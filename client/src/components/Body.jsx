@@ -5,6 +5,7 @@ import AdminDashboard from '../pages/AdminDashboard'
 import FieldWorkerView from '../pages/FieldWorkerView'
 import TicketSubmitPage from '../pages/TicketSubmitPage'
 import TicketFeedPage from '../pages/TicketFeedPage'
+import MyTicketsPage from '../pages/MyTicketsPage'
 
 const appRouter = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ const appRouter = createBrowserRouter([
       {
         path: '/tickets',
         element: <TicketFeedPage />,
+      },
+      {
+        path: '/my-tickets',
+        element: <MyTicketsPage />,
       },
     ],
   },
