@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: campus-mongodb
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - campus-network
+
+  campus-server:
+    build: ./server
+    container_name: campus-server
+    ports:
+      - '5000:5000'
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/campusfix
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - mongodb
+    networks:
+      - campus-network
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+  campus-client:
+    build: ./client
+    container_name: campus-client
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_URL=http://localhost:5000/api
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - campus-server
+    networks:
+      - campus-network
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  mongo-data:
+
+networks:
+  campus-network:
+    driver: bridge

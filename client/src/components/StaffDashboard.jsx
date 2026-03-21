@@ -17,7 +17,15 @@ const StaffDashboard = () => {
   const dispatch = useDispatch()
   const { userId } = useAuth()
   const { user } = useUser()
-  const role = user?.publicMetadata?.role || user?.unsafeMetadata?.role
+  const reduxUser = useSelector((store) => store.user)
+  const storedStaff = typeof window !== 'undefined' ? localStorage.getItem('campusfixStaff') : null
+  const parsed = storedStaff ? JSON.parse(storedStaff) : null
+  const storedStaffRole = parsed?.role || null
+  const role = user?.publicMetadata?.role || user?.unsafeMetadata?.role || reduxUser?.role || storedStaffRole
+
+  // Resolve userId: Clerk first, then Redux, then localStorage
+  const effectiveUserId = userId || reduxUser?.id || parsed?.id
+
   const assignedTasks = useSelector((store) => store.tasks?.assignedTasks) || []
   const [updatingId, setUpdatingId] = useState(null)
   const [proofFiles, setProofFiles] = useState({})
@@ -32,7 +40,7 @@ const StaffDashboard = () => {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId || '',
+          'x-user-id': effectiveUserId || '',
           'x-user-role': role || '',
         },
         body: JSON.stringify({ status: nextStatus }),
@@ -73,7 +81,7 @@ const StaffDashboard = () => {
       const response = await fetch(`http://localhost:7777/api/issues/${taskId}/resolve`, {
         method: 'POST',
         headers: {
-          'x-user-id': userId || '',
+          'x-user-id': effectiveUserId || '',
           'x-user-role': role || '',
         },
         body: formData,
@@ -105,7 +113,7 @@ const StaffDashboard = () => {
         <p className="mt-2 text-sm text-white/70">
           Ask your administrator to assign you the Worker role in Clerk to view tasks.
         </p>
-        <p className="mt-3 text-xs text-white/50">Signed in as: {userId || 'Unknown'}</p>
+        <p className="mt-3 text-xs text-white/50">Signed in as: {effectiveUserId || 'Unknown'}</p>
       </div>
     )
   }
@@ -117,7 +125,7 @@ const StaffDashboard = () => {
         <p className="mt-2 text-sm text-white/70">
           You are logged in as a worker, but no tickets are assigned to your account yet.
         </p>
-        <p className="mt-3 text-xs text-white/50">Worker ID: {userId}</p>
+        <p className="mt-3 text-xs text-white/50">Worker ID: {userId || reduxUser?.id || 'Unknown'}</p>
       </div>
     )
   }

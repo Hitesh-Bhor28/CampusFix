@@ -1,0 +1,473 @@
+================================================================================
+                         CAMPUSFIX - PRODUCT REQUIREMENTS DOCUMENT (PRD)
+================================================================================
+
+Document Version : 1.0
+Date             : 2026-03-22
+Author           : CampusFix Development Team
+Status           : Active
+
+================================================================================
+1. PRODUCT OVERVIEW
+================================================================================
+
+1.1 Product Name
+    CampusFix - Campus Facility Maintenance Helpdesk
+
+1.2 Vision Statement
+    CampusFix is a web-based platform that empowers students and faculty to
+    report campus facility issues, enables administrators to manage and assign
+    maintenance tasks, and allows maintenance workers to track and resolve
+    assigned tickets with photographic proof. The system provides end-to-end
+    visibility into the lifecycle of every maintenance request.
+
+1.3 Problem Statement
+    Campus facility issues (broken lights, HVAC failures, plumbing leaks,
+    network outages) often go unreported or lack organized tracking. There is
+    no centralized system connecting students who report issues, facility
+    managers who prioritize and assign work, and maintenance staff who perform
+    repairs. This results in delayed resolutions, duplicated reports, and poor
+    accountability.
+
+1.4 Target Users
+    - Students / Faculty   : Report issues and track their resolution.
+    - Facilities Manager   : Oversee all tickets, view analytics, assign workers.
+    - Maintenance Staff    : View assigned tasks, update status, submit proof.
+
+================================================================================
+2. USER ROLES AND PERMISSIONS
+================================================================================
+
+2.1 Student (Default Role)
+    - View the public landing page with statistics and recent tickets.
+    - Submit new maintenance tickets with title, description, issue type,
+      image upload, and geolocation (GPS or map click).
+    - Browse the full ticket feed and upvote existing tickets.
+    - View "My Tickets" (tickets they have submitted).
+    - Confirm resolution and close completed tickets.
+    - Option to submit tickets anonymously.
+
+2.2 Facilities Manager / Admin
+    - Access the Admin Dashboard with analytics (charts, heatmap).
+    - View all tickets across the system in a management table.
+    - Assign or unassign maintenance workers to tickets.
+    - Create new maintenance staff accounts with auto-generated credentials.
+    - View ticket status distribution (Pie Chart) and issue type breakdown
+      (Bar Chart) via the Analytics Widget.
+    - View campus-wide issue density on the Heatmap Widget.
+
+2.3 Maintenance Staff / Worker
+    - View only tickets assigned to their account.
+    - Update ticket status: Pending -> Assigned -> In Progress.
+    - Submit resolution proof (upload a compressed photo).
+    - Upon proof submission, ticket status changes to "Completed".
+
+2.4 Unauthenticated User
+    - Can view the landing page (CitizenView) only.
+    - Sees a "Login" button in the navigation bar.
+    - No navigation links are shown in the header.
+
+================================================================================
+3. FUNCTIONAL REQUIREMENTS
+================================================================================
+
+3.1 AUTHENTICATION AND AUTHORIZATION
+    -------------------------------------------------------------------------
+
+    FR-AUTH-01  Student/Faculty authentication via Clerk (Google OAuth or
+                email-based sign-in).
+
+    FR-AUTH-02  Staff and Admin authentication via a custom backend login
+                endpoint (/api/auth/staff-login) that verifies credentials
+                against Clerk's user database.
+
+    FR-AUTH-03  Login page provides three tabs: Student, Staff, Admin.
+                - Student tab: Clerk SignIn component.
+                - Staff tab: Custom email/password form, redirects to /worker.
+                - Admin tab: Custom email/password form, redirects to /admin.
+
+    FR-AUTH-04  Role-based route gating via RoleGate component.
+                - /               : student only
+                - /tickets/*      : student only
+                - /my-tickets     : student only
+                - /admin          : admin only
+                - /worker         : worker only
+                - /login          : accessible to all (no gate)
+
+    FR-AUTH-05  Role is determined from (in priority order):
+                1. Clerk publicMetadata.role (for signed-in Clerk users)
+                2. Redux store (userSlice)
+                3. localStorage (campusfixStaff key)
+                Default: "student"
+
+    FR-AUTH-06  Logout functionality for staff/admin:
+                - Clears localStorage (campusfixStaff)
+                - Dispatches removeUser() to Redux
+                - Redirects to home page (/)
+
+    FR-AUTH-07  Clerk UserButton component for student sign-out (via Clerk).
+
+3.2 TICKET SUBMISSION
+    -------------------------------------------------------------------------
+
+    FR-TKT-01  Title field (required, max 150 characters).
+
+    FR-TKT-02  Description field (required, max 2000 characters).
+
+    FR-TKT-03  Issue Type selection (required):
+                IT/Network, Electrical, Plumbing, Furniture/Structural,
+                AC/HVAC, Other.
+
+    FR-TKT-04  Image upload (optional):
+                - Accepts image/* files.
+                - Client-side compression via browser-image-compression
+                  (max 2MB, max 1920px dimension).
+                - Server-side storage via Cloudinary (multer-storage-cloudinary).
+                - Upload progress bar shown to user.
+                - Sample image mode available for development/testing.
+
+    FR-TKT-05  Geolocation capture (required):
+                - "Get My Location" button uses browser Geolocation API.
+                - Interactive Leaflet map with click-to-select.
+                - Manual latitude/longitude input fields.
+                - Stored as GeoJSON Point with 2dsphere index.
+
+    FR-TKT-06  Anonymous reporting toggle:
+                - When checked, reportedByDisplay is set to "Anonymous".
+
+    FR-TKT-07  Reporter ID is automatically captured from Clerk userId.
+
+3.3 TICKET FEED AND BROWSING
+    -------------------------------------------------------------------------
+
+    FR-FEED-01 Public ticket feed page (/tickets) displays all tickets
+               sorted by creation date (newest first).
+
+    FR-FEED-02 Each ticket card (StudentTicketCard) shows:
+               - Title, description, status badge (color-coded).
+               - Assigned worker name or "Unassigned".
+               - Reported date.
+               - Upvote button with count.
+
+    FR-FEED-03 Upvote system:
+               - Users can upvote a ticket once (tracked by userId).
+               - Duplicate upvotes show "You have already upvoted" message.
+               - Completed/Closed tickets cannot be upvoted (button disabled).
+
+    FR-FEED-04 Resolution confirmation:
+               - When a ticket status is "Completed", the reporter can
+                 click "Confirm & Close Ticket" to change status to "Closed".
+
+    FR-FEED-05 My Tickets page (/my-tickets) filters tickets where
+               reportedBy matches the current Clerk userId.
+
+3.4 ADMIN DASHBOARD
+    -------------------------------------------------------------------------
+
+    FR-ADM-01  Analytics Widget (recharts):
+               - Summary cards: Total Tickets, Total Closed, Total Pending.
+               - Pie Chart: Status distribution
+                 (Pending, Assigned, In Progress, Completed, Closed).
+               - Bar Chart: Issue type distribution.
+
+    FR-ADM-02  Heatmap Widget (Leaflet + leaflet.heat):
+               - Renders a heat layer on OpenStreetMap tiles.
+               - Density points derived from ticket GeoJSON coordinates.
+               - Centered on campus coordinates (18.5204, 73.8567).
+
+    FR-ADM-03  Ticket Management Table:
+               - Columns: Title, Status, Upvotes, Assignee, Date, Actions.
+               - Worker assignment via dropdown (fetched from /api/workers).
+               - "View Details" button opens a modal with full ticket info,
+                 including original and resolution images.
+
+    FR-ADM-04  Worker Account Creation Form:
+               - Fields: Email (required), First Name, Last Name.
+               - Creates a Clerk user with role: "worker" in publicMetadata.
+               - Auto-generates a temporary password (CF-XXXXXXXX!).
+               - Displays generated credentials for secure sharing.
+
+3.5 MAINTENANCE STAFF DASHBOARD
+    -------------------------------------------------------------------------
+
+    FR-WRK-01  Displays only tickets assigned to the logged-in worker
+               (filtered by assignedTo matching workerId).
+
+    FR-WRK-02  Task status progression:
+               - "Start Work" button: Assigned/Pending -> In Progress.
+               - "Submit Proof" flow: Upload a resolution photo ->
+                 status changes to "Completed".
+
+    FR-WRK-03  Resolution proof:
+               - File upload with client-side compression (max 2MB).
+               - Stored via Cloudinary, URL saved in resolutionImageUrls.
+               - Task is removed from the worker's list upon resolution.
+
+    FR-WRK-04  Worker ID resolved from Clerk, Redux, or localStorage
+               (fallback chain for custom staff login).
+
+3.6 NAVIGATION AND UI
+    -------------------------------------------------------------------------
+
+    FR-NAV-01  Navbar displays role-specific links:
+               - Signed out: No links, only "Login" button.
+               - Student: Student/Faculty View, Submit Ticket, Ticket Feed,
+                 My Tickets.
+               - Admin: Facilities Manager.
+               - Worker: Maintenance Staff.
+
+    FR-NAV-02  Login button redirects to /login page (not a modal).
+
+    FR-NAV-03  Clerk UserButton for student sign-out.
+               Custom Logout button for staff/admin.
+
+================================================================================
+4. NON-FUNCTIONAL REQUIREMENTS
+================================================================================
+
+4.1 PERFORMANCE
+    -------------------------------------------------------------------------
+
+    NFR-PERF-01  Route-based code splitting via React.lazy() and Suspense.
+                 All 7 page components are lazily loaded.
+
+    NFR-PERF-02  Heavy components (AnalyticsWidget, HeatmapWidget) are
+                 lazily loaded within AdminDashboard with their own
+                 Suspense boundary.
+
+    NFR-PERF-03  Shimmer/skeleton loading UI (animate-pulse) shown during
+                 chunk downloads to prevent layout shift and flickering.
+
+    NFR-PERF-04  Client-side image compression before upload to reduce
+                 bandwidth usage and upload time.
+
+    NFR-PERF-05  No-cache headers on ticket fetch endpoints to ensure
+                 fresh data.
+
+4.2 SECURITY
+    -------------------------------------------------------------------------
+
+    NFR-SEC-01   Clerk handles all student authentication (OAuth, email).
+    NFR-SEC-02   Staff/Admin passwords verified server-side via Clerk SDK
+                 (clerkClient.users.verifyPassword).
+    NFR-SEC-03   CORS restricted to allowed origins
+                 (localhost:5173, localhost:5174).
+    NFR-SEC-04   Reporter ID required for ticket submission.
+    NFR-SEC-05   Worker role verified on task-related API endpoints.
+    NFR-SEC-06   Admin role verified on worker creation endpoint.
+
+4.3 SCALABILITY
+    -------------------------------------------------------------------------
+
+    NFR-SCALE-01 MongoDB with Mongoose ODM for data persistence.
+    NFR-SCALE-02 2dsphere geospatial indexing for location-based queries.
+    NFR-SCALE-03 Cloudinary for scalable image storage and CDN delivery.
+
+================================================================================
+5. TECHNICAL ARCHITECTURE
+================================================================================
+
+5.1 Frontend Stack
+    - React 19 with Vite 8
+    - React Router v7 (createBrowserRouter)
+    - Redux Toolkit (global state management)
+    - Clerk React SDK (authentication)
+    - Tailwind CSS v4 (styling)
+    - Recharts v3 (analytics charts)
+    - Leaflet + react-leaflet (maps)
+    - leaflet.heat (heatmap layer)
+    - browser-image-compression (client-side image optimization)
+    - react-toastify (notifications)
+
+5.2 Backend Stack
+    - Node.js with Express 5
+    - MongoDB with Mongoose 9
+    - Clerk Node SDK (user management and auth verification)
+    - Cloudinary + multer-storage-cloudinary (image upload/storage)
+    - morgan (HTTP request logging)
+    - CORS middleware
+
+5.3 Folder Structure
+
+    CampusFix/
+    +-- client/                         # Frontend (Vite + React)
+    |   +-- src/
+    |   |   +-- components/
+    |   |   |   +-- Body.jsx            # Router + lazy loading + Suspense
+    |   |   |   +-- Navbar.jsx          # Role-based navigation
+    |   |   |   +-- Header.jsx          # Header with auth state
+    |   |   |   +-- Login.jsx           # Tabbed login (Student/Staff/Admin)
+    |   |   |   +-- Shimmer.jsx         # Skeleton loading UI
+    |   |   |   +-- TicketSubmit.jsx    # Ticket form with map + upload
+    |   |   |   +-- TicketFeed.jsx      # Ticket list display
+    |   |   |   +-- StudentTicketCard.jsx # Card with upvote + confirm
+    |   |   |   +-- StaffDashboard.jsx  # Worker task management
+    |   |   |   +-- AnalyticsWidget.jsx # Pie + Bar charts (recharts)
+    |   |   |   +-- HeatmapWidget.jsx   # Leaflet heat layer
+    |   |   |   +-- RootLayout.jsx      # App shell wrapper
+    |   |   +-- pages/
+    |   |   |   +-- CitizenView.jsx     # Landing page / Home
+    |   |   |   +-- AdminDashboard.jsx  # Admin panel
+    |   |   |   +-- FieldWorkerView.jsx # Worker panel
+    |   |   |   +-- TicketSubmitPage.jsx
+    |   |   |   +-- TicketFeedPage.jsx
+    |   |   |   +-- MyTicketsPage.jsx
+    |   |   +-- hooks/
+    |   |   |   +-- useTickets.js       # Fetch all tickets
+    |   |   |   +-- useAssignedTasks.js # Fetch worker's assigned tasks
+    |   |   +-- utils/
+    |   |       +-- appStore.js         # Redux store config
+    |   |       +-- userSlice.js        # User auth state
+    |   |       +-- ticketSlice.js      # Tickets state
+    |   |       +-- taskSlice.js        # Worker tasks state
+    |   |       +-- issueSlice.js       # Issues state
+    |   |       +-- issueConstants.js   # API helper functions
+    |   +-- index.html
+    |   +-- package.json
+    +-- server/                          # Backend (Express + MongoDB)
+        +-- server.js                    # Entry point
+        +-- config/
+        |   +-- db.js                    # MongoDB connection
+        +-- models/
+        |   +-- Ticket.js               # Main ticket schema
+        |   +-- Issue.js                # Issue schema
+        +-- controllers/
+        |   +-- ticketController.js      # CRUD + upvote + assign
+        |   +-- issueController.js       # Assigned tasks + resolve
+        |   +-- authController.js        # Staff/Admin login
+        |   +-- adminController.js       # Create worker accounts
+        |   +-- workerController.js      # List workers
+        +-- routes/
+        |   +-- ticketRoutes.js
+        |   +-- issueRoutes.js
+        |   +-- authRoutes.js
+        |   +-- adminRoutes.js
+        |   +-- workerRoutes.js
+        +-- middlewares/
+        |   +-- upload.js                # Multer + Cloudinary config
+        |   +-- authMiddleware.js        # Auth middleware (TODO)
+        |   +-- errorHandler.js          # Global error handler
+        +-- package.json
+
+================================================================================
+6. API ENDPOINTS
+================================================================================
+
+6.1 HEALTH CHECK
+    GET  /api/health                    -> { success, message }
+
+6.2 TICKETS
+    GET  /api/tickets                   -> List all tickets
+    GET  /api/tickets/all               -> List all tickets (no-cache)
+    GET  /api/tickets/:id               -> Get single ticket
+    POST /api/tickets/create            -> Create ticket (multipart form)
+    PUT  /api/tickets/:id               -> Update ticket
+    DEL  /api/tickets/:id               -> Delete ticket
+    POST /api/tickets/:id/upvote        -> Upvote a ticket { userId }
+    PATCH /api/tickets/assign/:id       -> Assign worker { workerId, workerName }
+
+6.3 ISSUES / TASKS (Worker)
+    GET  /api/issues/tasks?userId=X     -> Get assigned tasks for worker
+    PATCH /api/issues/:id/status        -> Update task status { status }
+    POST /api/issues/:id/resolve        -> Resolve with proof (multipart)
+    PATCH /api/issues/confirm/:issueId  -> Student confirms resolution
+
+6.4 AUTHENTICATION
+    POST /api/auth/staff-login          -> Staff/Admin login { identifier, password }
+
+6.5 ADMIN
+    POST /api/admin/workers             -> Create worker account { email, firstName, lastName }
+
+6.6 WORKERS
+    GET  /api/workers                   -> List all workers (role=worker)
+
+================================================================================
+7. DATA MODELS
+================================================================================
+
+7.1 TICKET MODEL
+    +-- title              : String (required, max 150)
+    +-- description        : String (required, max 2000)
+    +-- location           : GeoJSON Point { type, coordinates, address }
+    +-- imageUrls          : [String]
+    +-- status             : Enum [Pending, Assigned, In Progress, Completed, Closed]
+    +-- upvotes            : Number (default 0)
+    +-- upvotedBy          : [String] (user IDs)
+    +-- aiDetectedIssueType: String
+    +-- category           : Enum [IT/Network, Electrical, Plumbing, ...]
+    +-- priority           : Enum [Low, Medium, High, Critical]
+    +-- reportedBy         : String (Clerk user ID, required)
+    +-- reportedByDisplay  : String
+    +-- assignedTo         : String (Clerk user ID)
+    +-- assignedToName     : String
+    +-- resolvedAt         : Date
+    +-- resolutionImageUrls: [String]
+    +-- createdAt          : Date (auto)
+    +-- updatedAt          : Date (auto)
+
+    Index: location (2dsphere)
+
+7.2 ISSUE MODEL
+    +-- title              : String (required, max 150)
+    +-- description        : String (required, max 2000)
+    +-- location           : GeoJSON Point { type, coordinates }
+    +-- status             : Enum [Pending, Assigned, In Progress, Completed, Closed]
+    +-- assignedTo         : String
+    +-- createdAt          : Date (auto)
+    +-- updatedAt          : Date (auto)
+
+    Index: location (2dsphere)
+
+================================================================================
+8. TICKET STATUS LIFECYCLE
+================================================================================
+
+    +----------+     Admin assigns     +-----------+     Worker starts
+    | Pending  | ------------------->  | Assigned  | ------------------->
+    +----------+                       +-----------+
+
+    +-------------+     Worker uploads proof     +------------+
+    | In Progress | ---------------------------> | Completed  |
+    +-------------+                              +------------+
+
+    +------------+     Student confirms      +--------+
+    | Completed  | ------------------------> | Closed |
+    +------------+                           +--------+
+
+    Note: Admin can unassign a worker, reverting status to "Pending".
+
+================================================================================
+9. ENVIRONMENT VARIABLES
+================================================================================
+
+9.1 Server (.env)
+    PORT                      : Server port (default 7777)
+    NODE_ENV                  : development / production
+    MONGO_URI                 : MongoDB connection string
+    CLERK_SECRET_KEY          : Clerk backend secret key
+    CLOUDINARY_CLOUD_NAME     : Cloudinary cloud name
+    CLOUDINARY_API_KEY        : Cloudinary API key
+    CLOUDINARY_API_SECRET     : Cloudinary API secret
+
+9.2 Client (.env)
+    VITE_CLERK_PUBLISHABLE_KEY: Clerk frontend publishable key
+    VITE_IMAGE_UPLOAD_MODE    : "real" or "sample" (dev testing)
+
+================================================================================
+10. FUTURE ENHANCEMENTS (OUT OF SCOPE - CURRENT VERSION)
+================================================================================
+
+    - Push notifications (Twilio/Firebase - env vars configured but not active)
+    - Google Maps integration (API key configured but not active)
+    - AI-powered issue classification from uploaded images
+    - Email notifications on ticket status changes
+    - Ticket priority auto-escalation based on upvote count
+    - Auth middleware on protected backend routes (currently TODO)
+    - Mobile-responsive PWA support
+    - Multi-language support
+    - SLA tracking and reporting
+    - Bulk ticket operations for admin
+
+================================================================================
+                                    END OF DOCUMENT
+================================================================================

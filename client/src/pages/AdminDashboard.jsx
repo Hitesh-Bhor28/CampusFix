@@ -1,17 +1,24 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import AnalyticsWidget from '../components/AnalyticsWidget'
-import HeatmapWidget from '../components/HeatmapWidget'
 import useTickets from '../hooks/useTickets'
 import { addTickets } from '../utils/ticketSlice'
+import { removeUser } from '../utils/userSlice'
+
+// Lazy-load heavy chart components (recharts is a large dependency)
+const AnalyticsWidget = lazy(() => import('../components/AnalyticsWidget'))
+const HeatmapWidget = lazy(() => import('../components/HeatmapWidget'))
 
 function AdminDashboard() {
   useTickets()
+  const navigate = useNavigate()
   const dispatch = useDispatch()
   const ticketsList = useSelector((store) => store.tickets?.ticketsList) || []
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [workers, setWorkers] = useState([])
+  const [workerForm, setWorkerForm] = useState({ email: '', firstName: '', lastName: '' })
+  const [workerStatus, setWorkerStatus] = useState({ loading: false, error: '', success: '' })
+  const [createdWorker, setCreatedWorker] = useState(null)
 
   useEffect(() => {
     const fetchWorkers = async () => {
@@ -76,6 +83,52 @@ function AdminDashboard() {
     }
   }
 
+
+  const handleCreateWorker = async (event) => {
+    event.preventDefault()
+
+    if (!workerForm.email) {
+      setWorkerStatus({ loading: false, error: 'Email is required.', success: '' })
+      return
+    }
+
+    setWorkerStatus({ loading: true, error: '', success: '' })
+    setCreatedWorker(null)
+
+    try {
+      const response = await fetch('http://localhost:7777/api/admin/workers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: workerForm.email,
+          firstName: workerForm.firstName || undefined,
+          lastName: workerForm.lastName || undefined,
+        }),
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setWorkerStatus({ loading: false, error: data?.message || 'Unable to create worker.', success: '' })
+        return
+      }
+
+      setWorkerStatus({ loading: false, error: '', success: 'Worker account created.' })
+      setCreatedWorker(data?.data || null)
+      setWorkerForm({ email: '', firstName: '', lastName: '' })
+
+      const refreshed = await fetch('http://localhost:7777/api/workers', { cache: 'no-store' })
+      const refreshedData = await refreshed.json().catch(() => null)
+      if (refreshed.ok) {
+        setWorkers(refreshedData?.data ?? [])
+      }
+    } catch (error) {
+      setWorkerStatus({ loading: false, error: 'Unable to create worker.', success: '' })
+    }
+  }
+
   const getResolvedLabel = (ticket) => {
     if (!ticket?.resolvedAt) return null
     try {
@@ -87,16 +140,88 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen p-8">
-      <nav className="mb-8 flex items-center justify-between">
-        <Link to="/" className="text-[var(--color-text-muted)] transition-colors hover:text-white">
-          Back to Home
-        </Link>
+      <nav className="mb-8 flex items-center justify-center relative">
         <h1 className="text-2xl font-bold text-[var(--color-primary)]">Facilities Manager</h1>
+        <button
+          onClick={() => {
+            localStorage.removeItem('campusfixStaff')
+            dispatch(removeUser())
+            navigate('/')
+          }}
+          className="absolute right-0 rounded-full border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-400 transition hover:bg-rose-500/20 hover:text-rose-300"
+        >
+          Logout
+        </button>
       </nav>
 
       <div className="mx-auto max-w-6xl space-y-8">
-        <AnalyticsWidget />
-        <HeatmapWidget />
+        <Suspense fallback={
+          <div className="space-y-6 animate-pulse">
+            <div className="h-48 rounded-2xl border border-white/10 bg-white/5" />
+            <div className="h-48 rounded-2xl border border-white/10 bg-white/5" />
+          </div>
+        }>
+          <AnalyticsWidget />
+          <HeatmapWidget />
+        </Suspense>
+        <div className="rounded-2xl border border-[var(--color-surface-2)] bg-[var(--color-surface)] p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Create Maintenance Staff Account</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Generate worker credentials and share them securely with your staff.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleCreateWorker} className="grid gap-4 md:grid-cols-[1.2fr_1fr_1fr_auto]">
+            <input
+              type="email"
+              placeholder="worker@campus.edu"
+              value={workerForm.email}
+              onChange={(event) => setWorkerForm((prev) => ({ ...prev, email: event.target.value }))}
+              className="w-full rounded-xl border border-[var(--color-surface-2)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <input
+              type="text"
+              placeholder="First name"
+              value={workerForm.firstName}
+              onChange={(event) => setWorkerForm((prev) => ({ ...prev, firstName: event.target.value }))}
+              className="w-full rounded-xl border border-[var(--color-surface-2)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <input
+              type="text"
+              placeholder="Last name"
+              value={workerForm.lastName}
+              onChange={(event) => setWorkerForm((prev) => ({ ...prev, lastName: event.target.value }))}
+              className="w-full rounded-xl border border-[var(--color-surface-2)] bg-[var(--color-surface-2)] px-4 py-3 text-sm text-white placeholder:text-white/40"
+            />
+            <button
+              type="submit"
+              disabled={workerStatus.loading}
+              className="rounded-full bg-emerald-500 px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-900 transition hover:bg-emerald-400"
+            >
+              {workerStatus.loading ? 'Creating...' : 'Create Worker'}
+            </button>
+          </form>
+
+          {workerStatus.error ? (
+            <p className="mt-4 text-xs text-rose-200">{workerStatus.error}</p>
+          ) : null}
+          {workerStatus.success ? (
+            <p className="mt-4 text-xs text-emerald-200">{workerStatus.success}</p>
+          ) : null}
+
+          {createdWorker ? (
+            <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-100">
+              <p className="font-semibold">Generated Credentials</p>
+              <p className="mt-2">Email: <span className="font-semibold">{createdWorker.email}</span></p>
+              <p className="mt-1">Temporary Password: <span className="font-semibold">{createdWorker.password}</span></p>
+              <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-emerald-200/80">Share securely</p>
+            </div>
+          ) : null}
+        </div>
+
         <div className="rounded-2xl border border-[var(--color-surface-2)] bg-[var(--color-surface)] p-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -151,7 +276,7 @@ function AdminDashboard() {
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-[var(--color-text-muted)]">
-                          {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : '—'}
+                          {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : ''}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button

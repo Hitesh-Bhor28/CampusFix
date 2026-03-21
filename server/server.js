@@ -16,7 +16,7 @@ const app = express();
 // --------------- Middleware ---------------
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:5174"],
         credentials: true,
     })
 );
@@ -36,6 +36,8 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/tickets", require("./routes/ticketRoutes"));
 app.use("/api/issues", require("./routes/issueRoutes"));
 app.use("/api/workers", require("./routes/workerRoutes"));
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // --------------- Error Handling ---------------
 app.use(errorHandler);

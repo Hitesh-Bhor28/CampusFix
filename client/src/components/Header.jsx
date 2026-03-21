@@ -1,5 +1,8 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
+import { useEffect } from 'react'
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react'
 import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { addUser, removeUser } from '../utils/userSlice'
 
 const Show = ({ when, children }) => {
   if (when === 'signedIn') {
@@ -14,6 +17,54 @@ const Show = ({ when, children }) => {
 }
 
 const Header = () => {
+  const dispatch = useDispatch()
+  const { user, isSignedIn } = useUser()
+  const role = useSelector((store) => store.user?.role)
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      const stored = localStorage.getItem('campusfixStaff')
+      if (stored) {
+        try {
+          const staff = JSON.parse(stored)
+          dispatch(addUser(staff))
+          return
+        } catch (error) {
+          localStorage.removeItem('campusfixStaff')
+        }
+      }
+
+      // Signed out and no staff session — clear user
+      dispatch(removeUser())
+      return
+    }
+
+    const derivedRole = user?.publicMetadata?.role || 'student'
+    dispatch(
+      addUser({
+        id: user?.id,
+        role: derivedRole,
+        name: user?.firstName || user?.fullName || user?.username || null,
+      }),
+    )
+  }, [dispatch, isSignedIn, user])
+
+  const isLoggedIn = !!role
+  const normalizedRole = role || 'student'
+  const isWorker = normalizedRole === 'worker'
+  const isAdmin = normalizedRole === 'admin'
+
+  const navLinks = isAdmin
+    ? [{ to: '/admin', label: 'Facilities Manager' }]
+    : isWorker
+      ? [{ to: '/worker', label: 'Maintenance Staff' }]
+      : [
+          { to: '/', label: 'Student/Faculty View' },
+          { to: '/tickets/submit', label: 'Submit Ticket' },
+          { to: '/tickets', label: 'Ticket Feed' },
+          { to: '/my-tickets', label: 'My Tickets' },
+        ]
+
   return (
     <header className="w-full border-b border-slate-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4">
@@ -29,26 +80,15 @@ const Header = () => {
           </div>
         </div>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-          <Link className="transition hover:text-emerald-600" to="/">
-            Student/Faculty View
-          </Link>
-          <Link className="transition hover:text-emerald-600" to="/admin">
-            Facilities Manager
-          </Link>
-          <Link className="transition hover:text-emerald-600" to="/worker">
-            Maintenance Staff
-          </Link>
-          <Link className="transition hover:text-emerald-600" to="/tickets/submit">
-            Submit Ticket
-          </Link>
-          <Link className="transition hover:text-emerald-600" to="/tickets">
-            Ticket Feed
-          </Link>
-          <Link className="transition hover:text-emerald-600" to="/my-tickets">
-            My Tickets
-          </Link>
-        </nav>
+        {isLoggedIn && (
+          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+            {navLinks.map((link) => (
+              <Link key={link.to} className="transition hover:text-emerald-600" to={link.to}>
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        )}
 
         <div className="flex items-center gap-3">
           <Show when="signedOut">

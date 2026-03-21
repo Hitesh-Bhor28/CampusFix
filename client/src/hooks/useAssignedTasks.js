@@ -1,13 +1,24 @@
 import { useEffect } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { useAuth, useUser } from '@clerk/clerk-react'
 import { addTasks } from '../utils/taskSlice'
 
 const useAssignedTasks = () => {
   const dispatch = useDispatch()
-  const { userId } = useAuth()
+  const { userId: clerkUserId } = useAuth()
   const { user } = useUser()
-  const role = user?.publicMetadata?.role || user?.unsafeMetadata?.role
+  const reduxUser = useSelector((store) => store.user)
+
+  // Check Clerk first, then fall back to Redux / localStorage
+  const storedStaff = typeof window !== 'undefined' ? localStorage.getItem('campusfixStaff') : null
+  const parsed = storedStaff ? JSON.parse(storedStaff) : null
+
+  const userId = clerkUserId || reduxUser?.id || parsed?.id
+  const role =
+    user?.publicMetadata?.role ||
+    user?.unsafeMetadata?.role ||
+    reduxUser?.role ||
+    parsed?.role
 
   useEffect(() => {
     if (!userId || role !== 'worker') return
