@@ -3,7 +3,7 @@
 Thanks for helping build CampusFix. This guide keeps collaboration smooth and reviews fast.
 
 ## How to Contribute
-1. Fork the repo and create a feature branch.
+1. Fork repo and create a feature branch.
 2. Make your changes with clear, focused commits.
 3. Open a Pull Request with a short summary and screenshots where relevant.
 

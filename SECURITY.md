@@ -3,8 +3,6 @@
 ## Reporting a Vulnerability
 Please report security issues privately and do not open public GitHub issues, discussions, or pull requests for vulnerabilities.
 
-Email: security@campusfix.app
-
 When reporting, please include:
 - A clear description of the issue and potential impact
 - Steps to reproduce (proof-of-concept if possible)

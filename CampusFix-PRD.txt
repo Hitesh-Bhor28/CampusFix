@@ -30,7 +30,7 @@ Status           : Active
     accountability.
 
 1.4 Target Users
-    - Students / Faculty   : Report issues and track their resolution.
+    - Students / Faculty   : Report issues and also track their resolution.
     - Facilities Manager   : Oversee all tickets, view analytics, assign workers.
     - Maintenance Staff    : View assigned tasks, update status, submit proof.
 
